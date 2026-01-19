@@ -3,7 +3,6 @@ google-genai
 python-dotenv
 openai-whisper
 edge-tts
-sounddevice
 soundfile
 scipy
 numpy

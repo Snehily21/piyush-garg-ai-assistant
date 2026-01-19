@@ -5,11 +5,7 @@ import os
 import whisper
 import asyncio
 import edge_tts
-import soundfile as sf
 import io
-import sounddevice as sd
-import numpy as np
-from scipy.io.wavfile import write
 
 # ---------------- CONFIG ----------------
 load_dotenv()
@@ -32,13 +28,13 @@ st.divider()
 # Text input
 text_query = st.text_input("Ask your question (Text)")
 
-# Voice input
+# Voice input (browser mic)
 audio_file = st.audio_input("Or ask using your voice 🎤")
 
 ask_btn = st.button("Ask")
 
-# ---------------- TTS ----------------
-async def speak(text):
+# ---------------- TTS (Cloud-safe) ----------------
+async def speak_cloud(text):
     communicate = edge_tts.Communicate(
         text=text,
         voice=VOICE,
@@ -52,9 +48,7 @@ async def speak(text):
         if chunk["type"] == "audio":
             audio_bytes += chunk["data"]
 
-    data, samplerate = sf.read(io.BytesIO(audio_bytes), dtype="float32")
-    sd.play(data, samplerate)
-    sd.wait()
+    return audio_bytes
 
 # ---------------- MAIN LOGIC ----------------
 if ask_btn:
@@ -65,13 +59,14 @@ if ask_btn:
     if audio_file is not None:
         with st.spinner("Listening..."):
             audio_bytes = audio_file.read()
+
             with open("input.wav", "wb") as f:
                 f.write(audio_bytes)
 
             result = whisper_model.transcribe("input.wav")
             user_query = result["text"]
 
-        st.info(f"🎤 You said: {user_query}")
+        st.info(f"You said: {user_query}")
 
     # Case 2: Text input
     elif text_query.strip():
@@ -111,5 +106,7 @@ Question:
         st.success("Answer")
         st.write(answer)
 
-        # Speak answer
-        asyncio.run(speak(answer))
+        # 🔊 Speak in browser (Cloud-safe)
+        with st.spinner("Speaking..."):
+            audio_bytes = asyncio.run(speak_cloud(answer))
+            st.audio(audio_bytes, format="audio/mp3")
